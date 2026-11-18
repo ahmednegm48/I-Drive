@@ -1,0 +1,3520 @@
+{
+  "info": {
+    "name": "I-Drive API - Automated Tests",
+    "description": "Automated tests for every I-Drive REST endpoint.\n\nBefore each run: `node postman/seed.js` (creates/resets the test rider, driver and candidate and clears their rides).\nThen run the whole collection in order (Runner, or `npm run test:api`).\n\nFile uploads use fixtures/ relative to the working directory: set Postman's working directory to the postman/ folder.\nThe estimate and request steps call Mapbox, so MAPBOX must be set and the machine must be online.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test(\"Response is JSON\", () => pm.response.to.be.json);",
+          "pm.test(\"Response time under 5 s\", () => pm.expect(pm.response.responseTime).to.be.below(5000));"
+        ]
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "Postman@12345",
+      "type": "string"
+    },
+    {
+      "key": "riderEmail",
+      "value": "postman.rider@idrive.test",
+      "type": "string"
+    },
+    {
+      "key": "driverEmail",
+      "value": "postman.driver@idrive.test",
+      "type": "string"
+    },
+    {
+      "key": "candidateEmail",
+      "value": "postman.candidate@idrive.test",
+      "type": "string"
+    },
+    {
+      "key": "pickupLng",
+      "value": "31.2357",
+      "type": "string"
+    },
+    {
+      "key": "pickupLat",
+      "value": "30.0444",
+      "type": "string"
+    },
+    {
+      "key": "dropoffLng",
+      "value": "31.2089",
+      "type": "string"
+    },
+    {
+      "key": "dropoffLat",
+      "value": "30.0276",
+      "type": "string"
+    },
+    {
+      "key": "signupEmail",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "riderToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "riderRefresh",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "riderId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driverToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driverRefresh",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driverId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidateToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidateRefresh",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "candidateId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "rideId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "cancelRideId",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "driverCancelRideId",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "0. Health",
+      "description": "Server is up and unknown routes return 404.",
+      "item": [
+        {
+          "name": "Welcome",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Welcome to I-Drive\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Welcome to I-Drive\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/"
+          }
+        },
+        {
+          "name": "Unknown route returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Route not found\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Route not found\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/this-route-does-not-exist"
+          }
+        }
+      ]
+    },
+    {
+      "name": "1. Auth",
+      "description": "Signup, confirmation, login, tokens and password reset.",
+      "item": [
+        {
+          "name": "Signup - validation error",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\",\n  \"password\": \"short\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/signup"
+          }
+        },
+        {
+          "name": "Signup - unknown field rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Post\",\n  \"lastname\": \"Man\",\n  \"username\": \"postman\",\n  \"phone\": \"01000000000\",\n  \"email\": \"postman.signup.extra@idrive.test\",\n  \"password\": \"Postman@12345\",\n  \"role\": \"DRIVER\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/signup"
+          }
+        },
+        {
+          "name": "Signup - success",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.collectionVariables.set(\"signupEmail\", `postman.signup.${Date.now()}@idrive.test`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Message is \\\"Done\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Done\"));",
+                  "const { user } = pm.response.json();",
+                  "pm.test(\"Returns the new user\", () => pm.expect(user.email).to.eql(pm.collectionVariables.get(\"signupEmail\")));",
+                  "pm.test(\"New user is a rider\", () => pm.expect(user.role).to.eql(\"RIDER\"));",
+                  "pm.test(\"New user is not confirmed yet\", () => pm.expect(user.confirmedAt).to.be.undefined);",
+                  "pm.test(\"Password hash is not exposed\", () => pm.expect(user).to.not.have.property(\"password\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Post\",\n  \"lastname\": \"Man\",\n  \"username\": \"postman_new\",\n  \"phone\": \"01000000000\",\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/signup"
+          }
+        },
+        {
+          "name": "Signup - duplicate email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"User already exists\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"User already exists\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"firstname\": \"Post\",\n  \"lastname\": \"Man\",\n  \"username\": \"postman_new\",\n  \"phone\": \"01000000000\",\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/signup"
+          }
+        },
+        {
+          "name": "Confirm email - wrong OTP",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Invalid OTP\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid OTP\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\",\n  \"otp\": \"000000\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/confirm-email"
+          }
+        },
+        {
+          "name": "Confirm email - OTP not 6 digits",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\",\n  \"otp\": \"12ab\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/confirm-email"
+          }
+        },
+        {
+          "name": "Confirm email - unknown account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Invalid Account\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid Account\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody.here@idrive.test\",\n  \"otp\": \"123456\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/confirm-email"
+          }
+        },
+        {
+          "name": "Login - unconfirmed account",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Invalid Credentials\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid Credentials\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{signupEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login - wrong password",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Invalid Credentials\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid Credentials\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"password\": \"WrongPassword123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login - validation error",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"password\": \"123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login"
+          }
+        },
+        {
+          "name": "Login - rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Logged in Successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Logged in Successfully\"));",
+                  "const { credentials } = pm.response.json();",
+                  "pm.test(\"Returns access and refresh tokens\", () => {",
+                  "  pm.expect(credentials.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(credentials.refreshToken).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set(\"riderToken\", credentials.accessToken);",
+                  "pm.collectionVariables.set(\"riderRefresh\", credentials.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Requires the seeded account. Run `node postman/seed.js` first."
+          }
+        },
+        {
+          "name": "Login - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Logged in Successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Logged in Successfully\"));",
+                  "const { credentials } = pm.response.json();",
+                  "pm.test(\"Returns access and refresh tokens\", () => {",
+                  "  pm.expect(credentials.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(credentials.refreshToken).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set(\"driverToken\", credentials.accessToken);",
+                  "pm.collectionVariables.set(\"driverRefresh\", credentials.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{driverEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Requires the seeded account. Run `node postman/seed.js` first."
+          }
+        },
+        {
+          "name": "Login - candidate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Logged in Successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Logged in Successfully\"));",
+                  "const { credentials } = pm.response.json();",
+                  "pm.test(\"Returns access and refresh tokens\", () => {",
+                  "  pm.expect(credentials.accessToken).to.be.a(\"string\").and.not.empty;",
+                  "  pm.expect(credentials.refreshToken).to.be.a(\"string\").and.not.empty;",
+                  "});",
+                  "pm.collectionVariables.set(\"candidateToken\", credentials.accessToken);",
+                  "pm.collectionVariables.set(\"candidateRefresh\", credentials.refreshToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{candidateEmail}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/login",
+            "description": "Requires the seeded account. Run `node postman/seed.js` first."
+          }
+        },
+        {
+          "name": "Get me - rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"user retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"user retrieved successfully\"));",
+                  "const { user } = pm.response.json();",
+                  "pm.test(\"Role is RIDER\", () => pm.expect(user.role).to.eql(\"RIDER\"));",
+                  "pm.test(\"Password is not returned\", () => pm.expect(user).to.not.have.property(\"password\"));",
+                  "pm.collectionVariables.set(\"riderId\", user._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Get me - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"user retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"user retrieved successfully\"));",
+                  "const { user } = pm.response.json();",
+                  "pm.test(\"Role is DRIVER\", () => pm.expect(user.role).to.eql(\"DRIVER\"));",
+                  "pm.test(\"Password is not returned\", () => pm.expect(user).to.not.have.property(\"password\"));",
+                  "pm.collectionVariables.set(\"driverId\", user._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Get me - candidate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"user retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"user retrieved successfully\"));",
+                  "const { user } = pm.response.json();",
+                  "pm.test(\"Role is RIDER\", () => pm.expect(user.role).to.eql(\"RIDER\"));",
+                  "pm.test(\"Password is not returned\", () => pm.expect(user).to.not.have.property(\"password\"));",
+                  "pm.collectionVariables.set(\"candidateId\", user._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Get me - no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"you are not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"you are not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Get me - wrong token format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"Invalid token Format\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid token Format\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Token {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Get me - invalid token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"Invalid or expired token\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid or expired token\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer not.a.real.token"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Get me - refresh token used as access token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"Invalid or expired token\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid or expired token\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderRefresh}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Refresh - success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Token refreshed successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Token refreshed successfully\"));",
+                  "const { token } = pm.response.json();",
+                  "pm.test(\"Returns a new access token\", () => pm.expect(token.accessToken).to.be.a(\"string\").and.not.empty);",
+                  "pm.collectionVariables.set(\"riderToken\", token.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{riderRefresh}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Refresh - new access token works",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"user retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"user retrieved successfully\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Refresh - invalid token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"Invalid or expired token\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid or expired token\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"not.a.real.token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Refresh - access token rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"Invalid or expired token\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid or expired token\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{riderToken}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Refresh - missing token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Google login - invalid id token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Invalid Google token\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid Google token\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"idToken\": \"invalid-google-token\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/google-login"
+          }
+        },
+        {
+          "name": "Google login - missing id token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/google-login"
+          }
+        },
+        {
+          "name": "Forget password - unknown email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Invalid Email\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid Email\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody.here@idrive.test\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/forget-password"
+          }
+        },
+        {
+          "name": "Forget password - invalid email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"not-an-email\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/forget-password"
+          }
+        },
+        {
+          "name": "Reset password - passwords do not match",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));",
+                  "pm.test(\"Mentions the mismatch\", () => pm.expect(JSON.stringify(pm.response.json().cause)).to.include(\"Passwords do not match\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"otp\": \"123456\",\n  \"password\": \"NewPassword123\",\n  \"confirmPassword\": \"Different123\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/reset-password"
+          }
+        },
+        {
+          "name": "Reset password - no OTP requested",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"OTP has expired\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"OTP has expired\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{riderEmail}}\",\n  \"otp\": \"123456\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/reset-password"
+          }
+        },
+        {
+          "name": "Reset password - unknown email",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Invalid email\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid email\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"nobody.here@idrive.test\",\n  \"otp\": \"123456\",\n  \"password\": \"{{password}}\",\n  \"confirmPassword\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/reset-password"
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Driver",
+      "description": "Driver registration (multipart) and driver profile. File uploads read from fixtures/ relative to the working directory: set Postman's working directory (Settings > General) to this postman/ folder, or run Newman with --working-dir postman.",
+      "item": [
+        {
+          "name": "Register - no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"you are not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"you are not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "licenseNumber",
+                  "value": "POSTMAN-LIC-002",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "Hyundai",
+                  "type": "text"
+                },
+                {
+                  "key": "model",
+                  "value": "Elantra",
+                  "type": "text"
+                },
+                {
+                  "key": "year",
+                  "value": "2021",
+                  "type": "text"
+                },
+                {
+                  "key": "color",
+                  "value": "Silver",
+                  "type": "text"
+                },
+                {
+                  "key": "plateNumber",
+                  "value": "pm 2002",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/driver/register"
+          }
+        },
+        {
+          "name": "Register - missing images",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on files\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"files\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "licenseNumber",
+                  "value": "POSTMAN-LIC-002",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "Hyundai",
+                  "type": "text"
+                },
+                {
+                  "key": "model",
+                  "value": "Elantra",
+                  "type": "text"
+                },
+                {
+                  "key": "year",
+                  "value": "2021",
+                  "type": "text"
+                },
+                {
+                  "key": "color",
+                  "value": "Silver",
+                  "type": "text"
+                },
+                {
+                  "key": "plateNumber",
+                  "value": "pm 2002",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/driver/register"
+          }
+        },
+        {
+          "name": "Register - invalid fields",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "licenseNumber",
+                  "value": "POSTMAN-LIC-002",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "X",
+                  "type": "text"
+                },
+                {
+                  "key": "model",
+                  "value": "Elantra",
+                  "type": "text"
+                },
+                {
+                  "key": "year",
+                  "value": "1980",
+                  "type": "text"
+                },
+                {
+                  "key": "color",
+                  "value": "Silver",
+                  "type": "text"
+                },
+                {
+                  "key": "plateNumber",
+                  "value": "pm 2002",
+                  "type": "text"
+                },
+                {
+                  "key": "licenseImage",
+                  "type": "file",
+                  "src": "fixtures/sample.png"
+                },
+                {
+                  "key": "nationalIdImage",
+                  "type": "file",
+                  "src": "fixtures/sample.png"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/driver/register"
+          }
+        },
+        {
+          "name": "Register - wrong file type",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Rejects the file format\", () => pm.expect(pm.response.json().message).to.include(\"Invalid File Format\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "licenseNumber",
+                  "value": "POSTMAN-LIC-002",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "Hyundai",
+                  "type": "text"
+                },
+                {
+                  "key": "model",
+                  "value": "Elantra",
+                  "type": "text"
+                },
+                {
+                  "key": "year",
+                  "value": "2021",
+                  "type": "text"
+                },
+                {
+                  "key": "color",
+                  "value": "Silver",
+                  "type": "text"
+                },
+                {
+                  "key": "plateNumber",
+                  "value": "pm 2002",
+                  "type": "text"
+                },
+                {
+                  "key": "licenseImage",
+                  "type": "file",
+                  "src": "fixtures/not-an-image.txt"
+                },
+                {
+                  "key": "nationalIdImage",
+                  "type": "file",
+                  "src": "fixtures/sample.png"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/driver/register"
+          }
+        },
+        {
+          "name": "Register - success",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Message is \\\"Driver Registered Successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Driver Registered Successfully\"));",
+                  "const { driver } = pm.response.json().data;",
+                  "pm.test(\"Linked to the caller\", () => pm.expect(driver.userId).to.eql(pm.collectionVariables.get(\"candidateId\")));",
+                  "pm.test(\"Plate number is uppercased\", () => pm.expect(driver.vehicle.plateNumber).to.eql(\"PM 2002\"));",
+                  "pm.test(\"Year is stored as a number\", () => pm.expect(driver.vehicle.year).to.eql(2021));",
+                  "pm.test(\"Images saved under uploads/drivers\", () => {",
+                  "  pm.expect(driver.licenseImage).to.match(/^uploads\\/drivers\\//);",
+                  "  pm.expect(driver.nationalIdImage).to.match(/^uploads\\/drivers\\//);",
+                  "});",
+                  "pm.test(\"Starts offline\", () => pm.expect(driver.isOnline).to.eql(false));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "licenseNumber",
+                  "value": "POSTMAN-LIC-002",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "Hyundai",
+                  "type": "text"
+                },
+                {
+                  "key": "model",
+                  "value": "Elantra",
+                  "type": "text"
+                },
+                {
+                  "key": "year",
+                  "value": "2021",
+                  "type": "text"
+                },
+                {
+                  "key": "color",
+                  "value": "Silver",
+                  "type": "text"
+                },
+                {
+                  "key": "plateNumber",
+                  "value": "pm 2002",
+                  "type": "text"
+                },
+                {
+                  "key": "licenseImage",
+                  "type": "file",
+                  "src": "fixtures/sample.png"
+                },
+                {
+                  "key": "nationalIdImage",
+                  "type": "file",
+                  "src": "fixtures/sample.png"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/driver/register"
+          }
+        },
+        {
+          "name": "Register - already a driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"you are already a driver\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"you are already a driver\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "licenseNumber",
+                  "value": "POSTMAN-LIC-003",
+                  "type": "text"
+                },
+                {
+                  "key": "brand",
+                  "value": "Hyundai",
+                  "type": "text"
+                },
+                {
+                  "key": "model",
+                  "value": "Elantra",
+                  "type": "text"
+                },
+                {
+                  "key": "year",
+                  "value": "2021",
+                  "type": "text"
+                },
+                {
+                  "key": "color",
+                  "value": "Silver",
+                  "type": "text"
+                },
+                {
+                  "key": "plateNumber",
+                  "value": "PM3003",
+                  "type": "text"
+                },
+                {
+                  "key": "licenseImage",
+                  "type": "file",
+                  "src": "fixtures/sample.png"
+                },
+                {
+                  "key": "nationalIdImage",
+                  "type": "file",
+                  "src": "fixtures/sample.png"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/driver/register"
+          }
+        },
+        {
+          "name": "Driver me - newly registered driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"driver retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"driver retrieved successfully\"));",
+                  "pm.test(\"Returns the new profile\", () => pm.expect(pm.response.json().driver.licenseNumber).to.eql(\"POSTMAN-LIC-002\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/driver/me"
+          }
+        },
+        {
+          "name": "Driver me - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"driver retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"driver retrieved successfully\"));",
+                  "const { driver } = pm.response.json();",
+                  "pm.test(\"Profile belongs to the driver\", () => pm.expect(driver.userId).to.eql(pm.collectionVariables.get(\"driverId\")));",
+                  "pm.test(\"Has a vehicle\", () => pm.expect(driver.vehicle).to.include.keys(\"brand\", \"model\", \"year\", \"color\", \"plateNumber\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/driver/me"
+          }
+        },
+        {
+          "name": "Driver status - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Status is one of offline / available / on_trip\", () => pm.expect(pm.response.json().status).to.be.oneOf([\"offline\", \"available\", \"on_trip\"]));",
+                  "pm.test(\"Offline (not connected by socket)\", () => pm.expect(pm.response.json().status).to.eql(\"offline\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/driver/me/status"
+          }
+        },
+        {
+          "name": "Driver me - rider forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"Not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/driver/me"
+          }
+        },
+        {
+          "name": "Driver status - rider forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"Not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/driver/me/status"
+          }
+        },
+        {
+          "name": "Driver me - no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"you are not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"you are not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/driver/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Ride - validation & access",
+      "description": "Input validation and authorization on ride routes, before any ride exists.",
+      "item": [
+        {
+          "name": "Estimate - no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"you are not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"you are not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{baseUrl}}/ride/estimate?originlng={{pickupLng}}&originlat={{pickupLat}}&destinationlng={{dropoffLng}}&destinationlat={{dropoffLat}}"
+          }
+        },
+        {
+          "name": "Estimate - missing query",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on query\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"query\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/estimate"
+          }
+        },
+        {
+          "name": "Estimate - latitude out of range",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on query\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"query\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/estimate?originlng=31.2&originlat=95&destinationlng=31.3&destinationlat=30"
+          }
+        },
+        {
+          "name": "Estimate - not a number",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on query\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"query\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/estimate?originlng=abc&originlat=30&destinationlng=31.3&destinationlat=30"
+          }
+        },
+        {
+          "name": "Request - before estimate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Invalid Flow: Call estimate first\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Invalid Flow: Call estimate first\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": { \"lng\": {{pickupLng}}, \"lat\": {{pickupLat}} },\n  \"dropoff\": { \"lng\": {{dropoffLng}}, \"lat\": {{dropoffLat}} }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/request",
+            "description": "The seed clears the rider's cached estimate, so this must fail."
+          }
+        },
+        {
+          "name": "Request - invalid body",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": {\n    \"lng\": 200,\n    \"lat\": 30\n  }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/request"
+          }
+        },
+        {
+          "name": "Active - rider has none",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"No active ride\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"No active ride\"));",
+                  "pm.test(\"Ride is null\", () => pm.expect(pm.response.json().data.ride).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/active"
+          }
+        },
+        {
+          "name": "History - rider (defaults)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride history retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride history retrieved successfully\"));",
+                  "const { data: result } = pm.response.json();",
+                  "pm.test(\"Defaults to page 1, limit 10\", () => { pm.expect(result.page).to.eql(1); pm.expect(result.limit).to.eql(10); });",
+                  "pm.test(\"Returns a list and a total\", () => { pm.expect(result.ridesHistory).to.be.an(\"array\"); pm.expect(result.total).to.be.a(\"number\"); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/history"
+          }
+        },
+        {
+          "name": "History - limit too large",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on query\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"query\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/history?limit=100"
+          }
+        },
+        {
+          "name": "History - page 0",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on query\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"query\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/history?page=0"
+          }
+        },
+        {
+          "name": "Get ride - invalid id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on params\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"params\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/not-an-id"
+          }
+        },
+        {
+          "name": "Get ride - not found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Ride not found\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride not found\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/000000000000000000000000"
+          }
+        },
+        {
+          "name": "Accept - rider forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"Not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/000000000000000000000000/accept"
+          }
+        },
+        {
+          "name": "Arrived - rider forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"Not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/000000000000000000000000/arrived"
+          }
+        },
+        {
+          "name": "Start - rider forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"Not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/000000000000000000000000/start"
+          }
+        },
+        {
+          "name": "Complete - rider forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"Not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/000000000000000000000000/complete"
+          }
+        },
+        {
+          "name": "Accept - ride not found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Ride not found\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride not found\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/000000000000000000000000/accept"
+          }
+        },
+        {
+          "name": "Cancel - ride not found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 404\", () => pm.response.to.have.status(404));",
+                  "pm.test(\"Message is \\\"Ride not found\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride not found\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/000000000000000000000000/cancel"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Ride - full lifecycle",
+      "description": "requested -> accepted -> arrived -> started -> completed, with out-of-order transitions checked along the way. Arrival works because the seed puts the driver's last location on the pickup point.",
+      "item": [
+        {
+          "name": "Estimate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Estimate calculated successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Estimate calculated successfully\"));",
+                  "const { data: result } = pm.response.json();",
+                  "pm.test(\"Distance, duration and fare are positive numbers\", () => {",
+                  "  pm.expect(result.distance).to.be.a(\"number\").and.above(0);",
+                  "  pm.expect(result.duration).to.be.a(\"number\").and.above(0);",
+                  "  pm.expect(result.estimateFare).to.be.a(\"number\").and.at.least(20);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/estimate?originlng={{pickupLng}}&originlat={{pickupLat}}&destinationlng={{dropoffLng}}&destinationlat={{dropoffLat}}",
+            "description": "Calls Mapbox, so it needs a valid MAPBOX token and internet access."
+          }
+        },
+        {
+          "name": "Request ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Message is \\\"Ride requested successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride requested successfully\"));",
+                  "const { ride, expiresIn } = pm.response.json().data;",
+                  "pm.test(\"Ride is requested by the rider\", () => {",
+                  "  pm.expect(ride.status).to.eql(\"requested\");",
+                  "  pm.expect(ride.riderId).to.eql(pm.collectionVariables.get(\"riderId\"));",
+                  "});",
+                  "pm.test(\"Pickup stored as [lng, lat]\", () => pm.expect(ride.pickup.coordinates).to.eql([Number(pm.collectionVariables.get(\"pickupLng\")), Number(pm.collectionVariables.get(\"pickupLat\"))]));",
+                  "pm.test(\"Has an estimated fare\", () => pm.expect(ride.estimatedFare).to.be.a(\"number\"));",
+                  "pm.test(\"Expires in 120 s\", () => pm.expect(expiresIn).to.eql(120));",
+                  "pm.collectionVariables.set(\"rideId\", ride._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": { \"lng\": {{pickupLng}}, \"lat\": {{pickupLat}} },\n  \"dropoff\": { \"lng\": {{dropoffLng}}, \"lat\": {{dropoffLat}} }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/request"
+          }
+        },
+        {
+          "name": "Request - already has an active ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"You already have an active ride. Complete or cancel it first.\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"You already have an active ride. Complete or cancel it first.\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": { \"lng\": {{pickupLng}}, \"lat\": {{pickupLat}} },\n  \"dropoff\": { \"lng\": {{dropoffLng}}, \"lat\": {{dropoffLat}} }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/request"
+          }
+        },
+        {
+          "name": "Active - rider sees the request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Active ride retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Active ride retrieved successfully\"));",
+                  "const { ride } = pm.response.json().data;",
+                  "pm.test(\"Is the requested ride\", () => pm.expect(ride._id).to.eql(pm.collectionVariables.get(\"rideId\")));",
+                  "pm.test(\"Has time left before expiry\", () => pm.expect(ride.expiresIn).to.be.within(1, 120));",
+                  "pm.test(\"No driver yet\", () => { pm.expect(ride.vehicle).to.be.null; pm.expect(ride.driverLocation).to.be.null; });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/active"
+          }
+        },
+        {
+          "name": "Get ride - rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride retrieved successfully\"));",
+                  "pm.test(\"Ride status is requested\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"requested\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}"
+          }
+        },
+        {
+          "name": "Get ride - non-participant forbidden",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"You are not allowed to view this ride\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"You are not allowed to view this ride\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}"
+          }
+        },
+        {
+          "name": "Start - before accept (not the ride's driver)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"You are not allowed to start this ride\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"You are not allowed to start this ride\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/start"
+          }
+        },
+        {
+          "name": "Accept - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride accepted successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride accepted successfully\"));",
+                  "pm.test(\"Ride status is accepted\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"accepted\"));",
+                  "const { ride } = pm.response.json().data;",
+                  "pm.test(\"Driver is assigned\", () => pm.expect(ride.driverId._id).to.eql(pm.collectionVariables.get(\"driverId\")));",
+                  "pm.test(\"acceptedAt is set\", () => pm.expect(ride.acceptedAt).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/accept"
+          }
+        },
+        {
+          "name": "Accept - driver already busy",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Driver not available\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Driver not available\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/accept"
+          }
+        },
+        {
+          "name": "Accept - another driver, ride taken",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Rejected: not available or already taken\", () => pm.expect(pm.response.json().message).to.be.oneOf([\"Driver not available\", \"Ride is no longer available\"]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/accept",
+            "description": "The newly registered driver is not available (never connected by socket), so this is 'Driver not available'."
+          }
+        },
+        {
+          "name": "Get ride - rider sees driver and vehicle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride retrieved successfully\"));",
+                  "pm.test(\"Ride status is accepted\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"accepted\"));",
+                  "const { ride } = pm.response.json().data;",
+                  "pm.test(\"Driver contact info\", () => pm.expect(ride.driverId).to.include.keys(\"firstname\", \"lastname\", \"phone\"));",
+                  "pm.test(\"Vehicle included\", () => pm.expect(ride.vehicle.plateNumber).to.eql(\"PM1001\"));",
+                  "pm.test(\"No expiry once accepted\", () => pm.expect(ride.expiresIn).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}"
+          }
+        },
+        {
+          "name": "Start - before arrival",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Cannot start a ride that is accepted\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Cannot start a ride that is accepted\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/start"
+          }
+        },
+        {
+          "name": "Complete - before start",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Cannot complete a ride that is accepted\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Cannot complete a ride that is accepted\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/complete"
+          }
+        },
+        {
+          "name": "Arrived - non-participant driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"You are not allowed to arrive at this ride\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"You are not allowed to arrive at this ride\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/arrived"
+          }
+        },
+        {
+          "name": "Arrived - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 422) console.warn(\"Driver location unknown or far from pickup. Run node postman/seed.js before the collection.\");",
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Arrival confirmed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Arrival confirmed\"));",
+                  "pm.test(\"Ride status is arrived\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"arrived\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/arrived",
+            "description": "Needs the driver's last location near the pickup (the seed sets it for an hour)."
+          }
+        },
+        {
+          "name": "Arrived - twice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Cannot arrive at a ride that is arrived\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Cannot arrive at a ride that is arrived\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/arrived"
+          }
+        },
+        {
+          "name": "Start - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride started successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride started successfully\"));",
+                  "pm.test(\"Ride status is started\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"started\"));",
+                  "pm.test(\"startedAt is set\", () => pm.expect(pm.response.json().data.ride.startedAt).to.be.a(\"string\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/start"
+          }
+        },
+        {
+          "name": "Cancel - rider after start",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Cannot cancel a ride that is started\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Cannot cancel a ride that is started\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/cancel"
+          }
+        },
+        {
+          "name": "Complete - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride completed successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride completed successfully\"));",
+                  "pm.test(\"Ride status is completed\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"completed\"));",
+                  "const { ride } = pm.response.json().data;",
+                  "pm.test(\"Final fare is at least the base fare\", () => pm.expect(ride.finalFare).to.be.a(\"number\").and.at.least(20));",
+                  "pm.test(\"Distance and duration recorded\", () => { pm.expect(ride.distance).to.be.a(\"number\"); pm.expect(ride.duration).to.be.a(\"number\").and.at.least(0); });"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/complete"
+          }
+        },
+        {
+          "name": "Complete - twice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Cannot complete a ride that is completed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Cannot complete a ride that is completed\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{rideId}}/complete"
+          }
+        },
+        {
+          "name": "Active - rider has none after completion",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"No active ride\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"No active ride\"));",
+                  "pm.test(\"Ride is null\", () => pm.expect(pm.response.json().data.ride).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/active"
+          }
+        },
+        {
+          "name": "History - rider includes the completed ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride history retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride history retrieved successfully\"));",
+                  "const { ridesHistory, total } = pm.response.json().data;",
+                  "pm.test(\"Contains the ride\", () => pm.expect(ridesHistory.map((r) => r._id)).to.include(pm.collectionVariables.get(\"rideId\")));",
+                  "pm.test(\"Total counts it\", () => pm.expect(total).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/history"
+          }
+        },
+        {
+          "name": "History - driver includes the completed ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride history retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride history retrieved successfully\"));",
+                  "const { ridesHistory, total } = pm.response.json().data;",
+                  "pm.test(\"Contains the ride\", () => pm.expect(ridesHistory.map((r) => r._id)).to.include(pm.collectionVariables.get(\"rideId\")));",
+                  "pm.test(\"Total counts it\", () => pm.expect(total).to.be.at.least(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/history"
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Ride - cancellation",
+      "description": "Rider cancels a requested ride, driver cancels an accepted ride.",
+      "item": [
+        {
+          "name": "Estimate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Estimate calculated successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Estimate calculated successfully\"));",
+                  "const { data: result } = pm.response.json();",
+                  "pm.test(\"Distance, duration and fare are positive numbers\", () => {",
+                  "  pm.expect(result.distance).to.be.a(\"number\").and.above(0);",
+                  "  pm.expect(result.duration).to.be.a(\"number\").and.above(0);",
+                  "  pm.expect(result.estimateFare).to.be.a(\"number\").and.at.least(20);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/estimate?originlng={{pickupLng}}&originlat={{pickupLat}}&destinationlng={{dropoffLng}}&destinationlat={{dropoffLat}}",
+            "description": "Calls Mapbox, so it needs a valid MAPBOX token and internet access."
+          }
+        },
+        {
+          "name": "Request ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Message is \\\"Ride requested successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride requested successfully\"));",
+                  "const { ride, expiresIn } = pm.response.json().data;",
+                  "pm.test(\"Ride is requested by the rider\", () => {",
+                  "  pm.expect(ride.status).to.eql(\"requested\");",
+                  "  pm.expect(ride.riderId).to.eql(pm.collectionVariables.get(\"riderId\"));",
+                  "});",
+                  "pm.test(\"Pickup stored as [lng, lat]\", () => pm.expect(ride.pickup.coordinates).to.eql([Number(pm.collectionVariables.get(\"pickupLng\")), Number(pm.collectionVariables.get(\"pickupLat\"))]));",
+                  "pm.test(\"Has an estimated fare\", () => pm.expect(ride.estimatedFare).to.be.a(\"number\"));",
+                  "pm.test(\"Expires in 120 s\", () => pm.expect(expiresIn).to.eql(120));",
+                  "pm.collectionVariables.set(\"cancelRideId\", ride._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": { \"lng\": {{pickupLng}}, \"lat\": {{pickupLat}} },\n  \"dropoff\": { \"lng\": {{dropoffLng}}, \"lat\": {{dropoffLat}} }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/request"
+          }
+        },
+        {
+          "name": "Cancel - driver not assigned",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 403\", () => pm.response.to.have.status(403));",
+                  "pm.test(\"Message is \\\"You are not allowed to cancel this ride\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"You are not allowed to cancel this ride\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{cancelRideId}}/cancel"
+          }
+        },
+        {
+          "name": "Cancel - reason too long",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 400\", () => pm.response.to.have.status(400));",
+                  "pm.test(\"Message is \\\"Validation failed\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Validation failed\"));",
+                  "pm.test(\"Validation error is on body\", () => pm.expect(pm.response.json().cause.map((c) => c.key)).to.include(\"body\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/{{cancelRideId}}/cancel"
+          }
+        },
+        {
+          "name": "Cancel - rider with reason",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride cancelled successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride cancelled successfully\"));",
+                  "pm.test(\"Ride status is cancelled\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"cancelled\"));",
+                  "const { ride } = pm.response.json().data;",
+                  "pm.test(\"Cancelled by rider\", () => pm.expect(ride.cancelledBy).to.eql(\"rider\"));",
+                  "pm.test(\"Reason is trimmed\", () => pm.expect(ride.cancelReason).to.eql(\"Changed my plans\"));",
+                  "pm.test(\"No fee before a driver accepted\", () => pm.expect(ride.cancellationFee).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"  Changed my plans  \"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/{{cancelRideId}}/cancel"
+          }
+        },
+        {
+          "name": "Cancel - twice",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Cannot cancel a ride that is cancelled\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Cannot cancel a ride that is cancelled\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{cancelRideId}}/cancel"
+          }
+        },
+        {
+          "name": "Accept - cancelled ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 409\", () => pm.response.to.have.status(409));",
+                  "pm.test(\"Message is \\\"Ride is no longer available\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride is no longer available\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{cancelRideId}}/accept"
+          }
+        },
+        {
+          "name": "Request another ride",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 201\", () => pm.response.to.have.status(201));",
+                  "pm.test(\"Message is \\\"Ride requested successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride requested successfully\"));",
+                  "const { ride, expiresIn } = pm.response.json().data;",
+                  "pm.test(\"Ride is requested by the rider\", () => {",
+                  "  pm.expect(ride.status).to.eql(\"requested\");",
+                  "  pm.expect(ride.riderId).to.eql(pm.collectionVariables.get(\"riderId\"));",
+                  "});",
+                  "pm.test(\"Pickup stored as [lng, lat]\", () => pm.expect(ride.pickup.coordinates).to.eql([Number(pm.collectionVariables.get(\"pickupLng\")), Number(pm.collectionVariables.get(\"pickupLat\"))]));",
+                  "pm.test(\"Has an estimated fare\", () => pm.expect(ride.estimatedFare).to.be.a(\"number\"));",
+                  "pm.test(\"Expires in 120 s\", () => pm.expect(expiresIn).to.eql(120));",
+                  "pm.collectionVariables.set(\"driverCancelRideId\", ride._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"pickup\": { \"lng\": {{pickupLng}}, \"lat\": {{pickupLat}} },\n  \"dropoff\": { \"lng\": {{dropoffLng}}, \"lat\": {{dropoffLat}} }\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/ride/request"
+          }
+        },
+        {
+          "name": "Accept - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride accepted successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride accepted successfully\"));",
+                  "pm.test(\"Ride status is accepted\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"accepted\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{driverCancelRideId}}/accept"
+          }
+        },
+        {
+          "name": "Cancel - driver (no body)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride cancelled successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride cancelled successfully\"));",
+                  "pm.test(\"Ride status is cancelled\", () => pm.expect(pm.response.json().data.ride.status).to.eql(\"cancelled\"));",
+                  "const { ride } = pm.response.json().data;",
+                  "pm.test(\"Cancelled by driver\", () => pm.expect(ride.cancelledBy).to.eql(\"driver\"));",
+                  "pm.test(\"Driver cancellation is never charged\", () => pm.expect(ride.cancellationFee).to.eql(0));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/{{driverCancelRideId}}/cancel"
+          }
+        },
+        {
+          "name": "Active - driver is free again",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"No active ride\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"No active ride\"));",
+                  "pm.test(\"Ride is null\", () => pm.expect(pm.response.json().data.ride).to.be.null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/active"
+          }
+        },
+        {
+          "name": "History - rider includes cancelled rides",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Ride history retrieved successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Ride history retrieved successfully\"));",
+                  "const ids = pm.response.json().data.ridesHistory.map((r) => r._id);",
+                  "pm.test(\"Contains both cancelled rides\", () => pm.expect(ids).to.include.members([pm.collectionVariables.get(\"cancelRideId\"), pm.collectionVariables.get(\"driverCancelRideId\")]));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/ride/history?page=1&limit=50"
+          }
+        }
+      ]
+    },
+    {
+      "name": "6. Logout",
+      "description": "Logout revokes both the access and the refresh token.",
+      "item": [
+        {
+          "name": "Logout - rider",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Logout Successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Logout Successfully\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "Get me - revoked access token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"Token Is Revoked\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Token Is Revoked\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{riderToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/me"
+          }
+        },
+        {
+          "name": "Refresh - revoked refresh token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"Token Is Revoked\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Token Is Revoked\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{riderRefresh}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{baseUrl}}/auth/refresh"
+          }
+        },
+        {
+          "name": "Logout - no token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 401\", () => pm.response.to.have.status(401));",
+                  "pm.test(\"Message is \\\"you are not Authorized\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"you are not Authorized\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "Logout - driver",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Logout Successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Logout Successfully\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{driverToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        },
+        {
+          "name": "Logout - candidate",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test(\"Status is 200\", () => pm.response.to.have.status(200));",
+                  "pm.test(\"Message is \\\"Logout Successfully\\\"\", () => pm.expect(pm.response.json().message).to.eql(\"Logout Successfully\"));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{candidateToken}}"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/logout"
+          }
+        }
+      ]
+    }
+  ]
+}

@@ -1,0 +1,13 @@
+node_modules/
+dist/
+.DS_Store
+
+# Secrets
+config/*.env
+!config/*.env.example
+.env*
+
+# Runtime data
+uploads/
+dump.rdb
+*.log

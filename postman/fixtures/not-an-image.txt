@@ -1,0 +1,1 @@
+Not an image. Used to test that driver registration rejects non-image uploads.
